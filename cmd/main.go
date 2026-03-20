@@ -11,7 +11,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"github.com/joho/godotenv"
 	"log"
 	"net/http"
 	"os"
@@ -20,6 +19,8 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/joho/godotenv"
 )
 
 const ShutdownTimeout = 5 * time.Second

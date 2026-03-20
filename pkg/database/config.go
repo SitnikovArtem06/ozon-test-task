@@ -7,4 +7,3 @@ type Config struct {
 	User     string
 	Password string
 }
-

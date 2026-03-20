@@ -5,9 +5,10 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/go-chi/chi/v5"
 	"net/http"
 	"time"
+
+	"github.com/go-chi/chi/v5"
 )
 
 type ShortenerHandler struct {
