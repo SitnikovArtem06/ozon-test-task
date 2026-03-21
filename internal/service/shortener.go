@@ -41,39 +41,13 @@ func (s *ShortenerService) AddOrigin(ctx context.Context, originUrl string) (str
 		}
 
 		for {
-			select {
-			case <-ctx.Done():
-				if errors.Is(ctx.Err(), context.DeadlineExceeded) {
-					return ErrGenerateTimeout
-				}
-				return ctx.Err()
-			default:
-				shortUrl, err = generator.GenerateShortUrl()
-				if err != nil {
-					return ErrGenerateShortUrl
-				}
-				if _, err = s.repo.GetByShort(ctx, shortUrl); err != nil {
-					if errors.Is(err, repository.ErrNotFoundShort) {
-						if err := s.repo.Create(ctx, shortUrl, originUrl); err != nil {
-							switch {
-							case errors.Is(err, repository.ErrDuplicateShort):
-								continue
-							case errors.Is(err, repository.ErrDuplicateOrigin):
-								existingShort, getErr := s.repo.GetByOrigin(ctx, originUrl)
-								if getErr != nil {
-									return getErr
-								}
-								resp = existingShort
-								return nil
-							default:
-								return ErrPersistLink
-							}
-						}
-						resp = shortUrl
-						return nil
-					}
-					return err
-				}
+			shortUrl, done, stepErr := s.addOriginStep(ctx, originUrl)
+			if stepErr != nil {
+				return stepErr
+			}
+			if done {
+				resp = shortUrl
+				return nil
 			}
 		}
 	})
@@ -103,4 +77,45 @@ func (s *ShortenerService) GetOrigin(ctx context.Context, shortUrl string) (stri
 
 	return resp, err
 
+}
+
+func (s *ShortenerService) addOriginStep(ctx context.Context, originUrl string) (shortUrl string, done bool, err error) {
+	select {
+	case <-ctx.Done():
+		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+			return "", false, ErrGenerateTimeout
+		}
+		return "", false, ctx.Err()
+	default:
+	}
+
+	shortUrl, err = generator.GenerateShortUrl()
+	if err != nil {
+		return "", false, ErrGenerateShortUrl
+	}
+
+	if _, err = s.repo.GetByShort(ctx, shortUrl); err != nil {
+		if !errors.Is(err, repository.ErrNotFoundShort) {
+			return "", false, err
+		}
+
+		if err := s.repo.Create(ctx, shortUrl, originUrl); err != nil {
+			switch {
+			case errors.Is(err, repository.ErrDuplicateShort):
+				return "", false, nil
+			case errors.Is(err, repository.ErrDuplicateOrigin):
+				existingShort, getErr := s.repo.GetByOrigin(ctx, originUrl)
+				if getErr != nil {
+					return "", false, getErr
+				}
+				return existingShort, true, nil
+			default:
+				return "", false, ErrPersistLink
+			}
+		}
+
+		return shortUrl, true, nil
+	}
+
+	return "", false, nil
 }

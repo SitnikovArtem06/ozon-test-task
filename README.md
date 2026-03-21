@@ -17,7 +17,7 @@ STORAGE=memory docker compose up --build
 3. Запуск с `postgres`:
 
 ```bash
-docker compose up --build
+STORAGE=postgres docker compose up --build
 ```
 
 миграции поднимаются автоматически

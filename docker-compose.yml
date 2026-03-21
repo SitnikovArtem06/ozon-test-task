@@ -9,8 +9,8 @@ services:
     env_file:
       - .env
     environment:
-      STORAGE: ${STORAGE:-postgres}
-    command: ["-storage=${STORAGE:-postgres}"]
+      STORAGE: ${STORAGE:?}
+    command: ["-storage=${STORAGE:?}"]
     ports:
       - "${PORT:-8080}:${PORT:-8080}"
     depends_on:

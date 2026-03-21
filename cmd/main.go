@@ -23,10 +23,11 @@ import (
 	"github.com/joho/godotenv"
 )
 
-const ShutdownTimeout = 5 * time.Second
-
-const defaultLRUCapacity = 10000
-const defaultPort = "8080"
+const (
+	ShutdownTimeout    = 5 * time.Second
+	defaultLRUCapacity = 10000
+	defaultPort        = "8080"
+)
 
 type Config struct {
 	Storage     string

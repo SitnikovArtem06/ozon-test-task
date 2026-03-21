@@ -21,17 +21,19 @@ func NewShortenerHandler(service shortenerService) *ShortenerHandler {
 
 func (h *ShortenerHandler) SaveOrigin(w http.ResponseWriter, r *http.Request) {
 
-	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	ctx := r.Context()
+
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
 	var req SaveOriginRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "invalid json", http.StatusBadRequest)
+		writeError(w, http.StatusBadRequest, "invalid json")
 		return
 	}
 
 	if req.URL == "" {
-		http.Error(w, "url is required", http.StatusBadRequest)
+		writeError(w, http.StatusBadRequest, "url is required")
 		return
 	}
 
@@ -39,25 +41,23 @@ func (h *ShortenerHandler) SaveOrigin(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		switch {
 		case errors.Is(err, service.ErrGenerateShortUrl):
-			http.Error(w, "failed to generate short url", http.StatusInternalServerError)
+			writeError(w, http.StatusInternalServerError, "failed to generate short url")
 			return
 		case errors.Is(err, service.ErrPersistLink):
-			http.Error(w, "failed to save short link", http.StatusInternalServerError)
+			writeError(w, http.StatusInternalServerError, "failed to save short link")
 			return
 		case errors.Is(err, context.DeadlineExceeded):
-			http.Error(w, "request timeout", http.StatusGatewayTimeout)
+			writeError(w, http.StatusGatewayTimeout, "request timeout")
 			return
 		default:
-			http.Error(w, "internal server error", http.StatusInternalServerError)
+			writeError(w, http.StatusInternalServerError, "internal server error")
 			return
 		}
 	}
 
 	resp := SaveOriginResponse{Short: shortUrl}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	_ = json.NewEncoder(w).Encode(resp)
+	writeJSON(w, http.StatusCreated, resp)
 }
 
 func (h *ShortenerHandler) GetOrigin(w http.ResponseWriter, r *http.Request) {
@@ -67,7 +67,7 @@ func (h *ShortenerHandler) GetOrigin(w http.ResponseWriter, r *http.Request) {
 	shortUrl := chi.URLParam(r, "short")
 
 	if shortUrl == "" {
-		http.Error(w, "short url is required", http.StatusBadRequest)
+		writeError(w, http.StatusBadRequest, "short url is required")
 		return
 	}
 
@@ -75,21 +75,30 @@ func (h *ShortenerHandler) GetOrigin(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		switch {
 		case errors.Is(err, service.ErrInvalidShortURL):
-			http.Error(w, "short url must be 10 chars", http.StatusBadRequest)
+			writeError(w, http.StatusBadRequest, "short url must be 10 chars")
 			return
 		case errors.Is(err, service.ErrNotFound):
-			http.Error(w, "origin url not found", http.StatusNotFound)
+			writeError(w, http.StatusNotFound, "origin url not found")
 			return
 		default:
-			http.Error(w, "internal server error", http.StatusInternalServerError)
+			writeError(w, http.StatusInternalServerError, "internal server error")
 			return
 		}
 	}
 
 	resp := GetOriginResponse{URL: originUrl}
 
+	writeJSON(w, http.StatusOK, resp)
+
+}
+
+func writeJSON(w http.ResponseWriter, status int, payload any) {
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(w).Encode(resp)
+	w.WriteHeader(status)
+	_ = json.NewEncoder(w).Encode(payload)
+}
+
+func writeError(w http.ResponseWriter, status int, message string) {
+	writeJSON(w, status, ErrorResponse{Error: message})
 
 }
