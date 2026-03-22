@@ -18,4 +18,3 @@ if [ "$STORAGE" = "postgres" ]; then
 fi
 
 exec /urlshortener "$@"
-
